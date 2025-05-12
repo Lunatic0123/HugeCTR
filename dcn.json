@@ -1,0 +1,156 @@
+{
+  "layers": [
+    {
+      "dense": {
+        "dense_dim": 13,
+        "top": "dense"
+      },
+      "label": {
+        "label_dim": 1,
+        "top": "label"
+      },
+      "sparse": [
+        {
+          "is_fixed_length": true,
+          "nnz_per_slot": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "slot_num": 26,
+          "top": "data1"
+        }
+      ],
+      "type": "Data"
+    },
+    {
+      "bottom": "data1",
+      "optimizer": {
+        "adam_hparam": {
+          "beta1": 0.8999999761581421,
+          "beta2": 0.9990000128746033,
+          "epsilon": 1.0000000116860974e-07
+        },
+        "type": "Adam",
+        "update_type": "Global"
+      },
+      "sparse_embedding_hparam": {
+        "combiner": "sum",
+        "embedding_vec_size": 16,
+        "max_vocabulary_size_global": 409600,
+        "workspace_size_per_gpu_in_mb": 75
+      },
+      "top": "sparse_embedding1",
+      "type": "DistributedSlotSparseEmbeddingHash"
+    },
+    {
+      "bottom": "sparse_embedding1",
+      "leading_dim": 416,
+      "time_step": 0,
+      "top": "reshape1",
+      "type": "Reshape"
+    },
+    {
+      "axis": 1,
+      "bottom": [
+        "reshape1",
+        "dense"
+      ],
+      "top": "concat1",
+      "type": "Concat"
+    },
+    {
+      "bottom": "concat1",
+      "ranges": [
+        [
+          0,
+          429
+        ],
+        [
+          0,
+          429
+        ]
+      ],
+      "top": [
+        "concat1_slice0",
+        "concat1_slice1"
+      ],
+      "type": "Slice"
+    },
+    {
+      "bottom": "concat1_slice0",
+      "mc_param": {
+        "num_layers": 6
+      },
+      "top": "multicross1",
+      "type": "MultiCross"
+    },
+    {
+      "bottom": "concat1_slice1",
+      "fc_param": {
+        "num_output": 1024
+      },
+      "top": "fc1",
+      "type": "InnerProduct"
+    },
+    {
+      "bottom": "fc1",
+      "top": "relu1",
+      "type": "ReLU"
+    },
+    {
+      "bottom": "relu1",
+      "rate": 0.5,
+      "top": "dropout1",
+      "type": "Dropout"
+    },
+    {
+      "axis": 1,
+      "bottom": [
+        "dropout1",
+        "multicross1"
+      ],
+      "top": "concat2",
+      "type": "Concat"
+    },
+    {
+      "bottom": "concat2",
+      "fc_param": {
+        "num_output": 1
+      },
+      "top": "fc2",
+      "type": "InnerProduct"
+    },
+    {
+      "bottom": [
+        "fc2",
+        "label"
+      ],
+      "top": "loss",
+      "type": "BinaryCrossEntropyLoss"
+    }
+  ]
+}

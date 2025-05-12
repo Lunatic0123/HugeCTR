@@ -109,6 +109,15 @@ class SparseEmbeddingFunctors {
                      Tensors2<TypeEmbeddingComp> &output_tensors,
                      const ResourceManager &resource_manager);
 
+  template <typename TypeEmbeddingComp>
+  void forward_change(size_t batch_size, size_t slot_num, size_t embedding_vec_size,
+                      Tensors2<TypeEmbeddingComp> &output_tensors,
+                      const ResourceManager &resource_manager, float desired_value);
+
+  template <typename TypeEmbeddingComp>
+  void forward_change(size_t batch_size, const std::vector<size_t> &slot_num_per_gpu,
+                      size_t embedding_vec_size, Tensors2<TypeEmbeddingComp> &output_tensors,
+                      const ResourceManager &resource_manager, float desired_value);
   /**
    * reorder the sequence of data after all2all operation in forward propagation
    * @param batch_size_per_gpu batch size per GPU
@@ -217,6 +226,13 @@ class SparseEmbeddingFunctors {
                 Tensors2<TypeEmbeddingComp> &wgrad_tensors,
                 const ResourceManager &resource_manager);
 
+  // change
+
+  template <typename TypeEmbeddingComp>
+  void backward_change(size_t batch_size, size_t slot_num, size_t embedding_vec_size,
+                       Tensors2<TypeEmbeddingComp> &wgrad_tensors,
+                       const ResourceManager &resource_manager, float desired_value);
+
   /**
    * backward propagation for LocalizedSlotSparseEmbeddingHash
    * The first step of backward propagation: computing the wgrad.
@@ -238,6 +254,11 @@ class SparseEmbeddingFunctors {
                 const Tensors2<TypeEmbeddingComp> &embedding_feature_tensors,
                 Tensors2<TypeEmbeddingComp> &wgrad_tensors,
                 const ResourceManager &resource_manager);
+
+  template <typename TypeEmbeddingComp>
+  void backward_change(size_t batch_size, const std::vector<size_t> &slot_num_per_gpu,
+                       size_t embedding_vec_size, Tensors2<TypeEmbeddingComp> &wgrad_tensors,
+                       const ResourceManager &resource_manager, float desired_value);
 
   /**
    * reorder the sequence of data before all2all operation in backward propagation

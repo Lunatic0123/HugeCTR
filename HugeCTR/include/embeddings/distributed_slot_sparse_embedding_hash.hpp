@@ -194,6 +194,12 @@ class DistributedSlotSparseEmbeddingHash : public IEmbedding {
           embedding_data_.embedding_params_.embedding_vec_size, row_offset_allreduce_tensors_,
           embedding_data_.get_output_tensors(is_train), embedding_data_.get_resource_manager());
     }
+    // change here
+    functors_.forward_change(embedding_data_.embedding_params_.get_batch_size(is_train),
+                             embedding_data_.embedding_params_.slot_num,
+                             embedding_data_.embedding_params_.embedding_vec_size,
+                             embedding_data_.get_output_tensors(is_train),
+                             embedding_data_.get_resource_manager(), 1.0f);
 
     return;
   }
@@ -219,6 +225,11 @@ class DistributedSlotSparseEmbeddingHash : public IEmbedding {
                        embedding_data_.embedding_params_.combiner, row_offset_allreduce_tensors_,
                        embedding_feature_tensors_, wgrad_tensors_,
                        embedding_data_.get_resource_manager());
+
+    functors_.backward_change(embedding_data_.embedding_params_.get_batch_size(true),
+                              embedding_data_.embedding_params_.slot_num,
+                              embedding_data_.embedding_params_.embedding_vec_size, wgrad_tensors_,
+                              embedding_data_.get_resource_manager(), 2.0f);
 
     return;
   }
