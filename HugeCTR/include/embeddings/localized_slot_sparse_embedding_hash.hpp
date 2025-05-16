@@ -233,6 +233,11 @@ class LocalizedSlotSparseEmbeddingHash : public IEmbedding {
           *embedding_data_.get_nnz_array(is_train)[i], *hash_tables_[i],
           hash_table_value_tensors_[i], hash_value_index_tensors_[i], embedding_feature_tensors_[i],
           embedding_data_.get_local_gpu(i).get_stream());
+
+      functors_.forward_change(embedding_data_.embedding_params_.get_batch_size(is_train),
+                               slot_num_per_gpu_[i],
+                               embedding_data_.embedding_params_.embedding_vec_size,
+                               embedding_feature_tensors_[i], 1.0f);
     }
 
 // do all-to-all
@@ -278,11 +283,6 @@ class LocalizedSlotSparseEmbeddingHash : public IEmbedding {
                             embedding_data_.get_row_offsets_tensors(is_train),
                             hash_value_index_tensors_, hash_table_slot_id_tensors_,
                             embedding_data_.get_resource_manager());
-
-    functors_.forward_change(
-        embedding_data_.embedding_params_.get_batch_size(is_train), slot_num_per_gpu_,
-        embedding_data_.embedding_params_.embedding_vec_size,
-        embedding_data_.get_output_tensors(is_train), embedding_data_.get_resource_manager(), 1.0f);
 
     return;
   }
@@ -345,6 +345,7 @@ class LocalizedSlotSparseEmbeddingHash : public IEmbedding {
                               slot_num_per_gpu_,
                               embedding_data_.embedding_params_.embedding_vec_size, wgrad_tensors_,
                               embedding_data_.get_resource_manager(), 2.0f);
+
     return;
   }
 
