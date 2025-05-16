@@ -111,13 +111,8 @@ class SparseEmbeddingFunctors {
 
   template <typename TypeEmbeddingComp>
   void forward_change(size_t batch_size, size_t slot_num, size_t embedding_vec_size,
-                      Tensors2<TypeEmbeddingComp> &output_tensors,
-                      const ResourceManager &resource_manager, float desired_value);
+                      Tensor2<TypeEmbeddingComp> &output_tensor, float desired_value);
 
-  template <typename TypeEmbeddingComp>
-  void forward_change(size_t batch_size, const std::vector<size_t> &slot_num_per_gpu,
-                      size_t embedding_vec_size, Tensors2<TypeEmbeddingComp> &output_tensors,
-                      const ResourceManager &resource_manager, float desired_value);
   /**
    * reorder the sequence of data after all2all operation in forward propagation
    * @param batch_size_per_gpu batch size per GPU

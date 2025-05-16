@@ -27,58 +27,44 @@ __global__ void forward_change_kernel(int batch_size, int slot_num, int embeddin
 template <typename TypeEmbeddingComp>
 void SparseEmbeddingFunctors::forward_change(size_t batch_size, size_t slot_num,
                                              size_t embedding_vec_size,
-                                             Tensors2<TypeEmbeddingComp> &output_tensors,
-                                             const ResourceManager &resource_manager,
+                                             Tensor2<TypeEmbeddingComp> &output_tensor,
                                              float desired_value) {
-  size_t local_gpu_count = resource_manager.get_local_gpu_count();
-  CudaDeviceContext context;
-  for (size_t id = 0; id < local_gpu_count; id++) {
-    const auto &local_gpu = resource_manager.get_local_gpu(id);
-    context.set_device(local_gpu->get_device_id());
-    TypeEmbeddingComp *output = output_tensors[id].get_ptr();
-    forward_change_kernel<<<batch_size, embedding_vec_size, 0, local_gpu->get_stream()>>>(
-        batch_size, slot_num, embedding_vec_size, output, desired_value);
+  TypeEmbeddingComp *output = output_tensor.get_ptr();
+
+  size_t num_elements = output_tensor.get_num_elements();
+
+  TypeEmbeddingComp *temp_device_ptr = nullptr;
+  cudaError_t err;
+
+  err = cudaMalloc(&temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp));
+  if (err != cudaSuccess) {
+    HCTR_LIB_THROW(err);
   }
+
+  err = cudaMemcpyAsync(temp_device_ptr, output, num_elements * sizeof(TypeEmbeddingComp),
+                        cudaMemcpyDeviceToDevice);
+  if (err != cudaSuccess) {
+    cudaFree(temp_device_ptr);
+    HCTR_LIB_THROW(err);
+  }
+
+  forward_change_kernel<<<batch_size, embedding_vec_size, 0>>>(
+      batch_size, slot_num, embedding_vec_size, temp_device_ptr, desired_value);
+
+  cudaMemcpyAsync(output, temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp),
+                  cudaMemcpyDeviceToDevice);
+
   return;
 }
 
-template <typename TypeEmbeddingComp>
-void SparseEmbeddingFunctors::forward_change(size_t batch_size,
-                                             const std::vector<size_t> &slot_num_per_gpu,
-                                             size_t embedding_vec_size,
-                                             Tensors2<TypeEmbeddingComp> &output_tensors,
-                                             const ResourceManager &resource_manager,
-                                             float desired_value) {
-  size_t local_gpu_count = resource_manager.get_local_gpu_count();
-  CudaDeviceContext context;
-  for (size_t id = 0; id < local_gpu_count; id++) {
-    if (slot_num_per_gpu[id] == 0) {
-      continue;
-    }
+template void SparseEmbeddingFunctors::forward_change<float>(size_t batch_size, size_t slot_num,
+                                                             size_t embedding_vec_size,
+                                                             Tensor2<float> &output_tensor,
+                                                             float desired_value);
 
-    const auto &local_gpu = resource_manager.get_local_gpu(id);
-    context.set_device(local_gpu->get_device_id());
-    TypeEmbeddingComp *output = output_tensors[id].get_ptr();
-    forward_change_kernel<<<batch_size, embedding_vec_size, 0, local_gpu->get_stream()>>>(
-        batch_size, slot_num_per_gpu[id], embedding_vec_size, output, desired_value);
-  }
-
-  return;
-}
-template void SparseEmbeddingFunctors::forward_change<float>(
-    size_t batch_size, const std::vector<size_t> &slot_num_per_gpu, size_t embedding_vec_size,
-    Tensors2<float> &output_tensors, const ResourceManager &resource_manager, float desired_value);
-
-template void SparseEmbeddingFunctors::forward_change<__half>(
-    size_t batch_size, const std::vector<size_t> &slot_num_per_gpu, size_t embedding_vec_size,
-    Tensors2<__half> &output_tensors, const ResourceManager &resource_manager, float desired_value);
-
-template void SparseEmbeddingFunctors::forward_change<float>(
-    size_t batch_size, size_t slot_num, size_t embedding_vec_size, Tensors2<float> &output_tensors,
-    const ResourceManager &resource_manager, float desired_value);
-
-template void SparseEmbeddingFunctors::forward_change<__half>(
-    size_t batch_size, size_t slot_num, size_t embedding_vec_size, Tensors2<__half> &output_tensors,
-    const ResourceManager &resource_manager, float desired_value);
+template void SparseEmbeddingFunctors::forward_change<__half>(size_t batch_size, size_t slot_num,
+                                                              size_t embedding_vec_size,
+                                                              Tensor2<__half> &output_tensor,
+                                                              float desired_value);
 
 }  // namespace HugeCTR

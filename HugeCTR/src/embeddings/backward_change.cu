@@ -36,8 +36,32 @@ void SparseEmbeddingFunctors::backward_change(size_t batch_size, size_t slot_num
     const auto &local_gpu = resource_manager.get_local_gpu(id);
     context.set_device(local_gpu->get_device_id());
     TypeEmbeddingComp *wgrad = wgrad_tensors[id].get_ptr();
+
+    size_t num_elements = wgrad_tensors[id].get_num_elements();
+    if (num_elements == 0) {
+      continue;
+    }
+
+    TypeEmbeddingComp *temp_device_ptr = nullptr;
+    cudaError_t err;
+
+    err = cudaMalloc(&temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp));
+    if (err != cudaSuccess) {
+      HCTR_LIB_THROW(err);
+    }
+
+    err = cudaMemcpyAsync(temp_device_ptr, wgrad, num_elements * sizeof(TypeEmbeddingComp),
+                          cudaMemcpyDeviceToDevice, local_gpu->get_stream());
+    if (err != cudaSuccess) {
+      cudaFree(temp_device_ptr);
+      HCTR_LIB_THROW(err);
+    }
+
     backward_change_kernel<<<batch_size, embedding_vec_size, 0, local_gpu->get_stream()>>>(
-        batch_size, slot_num, embedding_vec_size, wgrad, desired_value);
+        batch_size, slot_num, embedding_vec_size, temp_device_ptr, desired_value);
+
+    cudaMemcpyAsync(wgrad, temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp),
+                    cudaMemcpyDeviceToDevice, local_gpu->get_stream());
   }
   return;
 }
@@ -59,8 +83,31 @@ void SparseEmbeddingFunctors::backward_change(size_t batch_size,
     const auto &local_gpu = resource_manager.get_local_gpu(id);
     context.set_device(local_gpu->get_device_id());
     TypeEmbeddingComp *wgrad = wgrad_tensors[id].get_ptr();
+
+    size_t num_elements = wgrad_tensors[id].get_num_elements();
+    if (num_elements == 0) {
+      continue;
+    }
+    TypeEmbeddingComp *temp_device_ptr = nullptr;
+    cudaError_t err;
+
+    err = cudaMalloc(&temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp));
+    if (err != cudaSuccess) {
+      HCTR_LIB_THROW(err);
+    }
+
+    err = cudaMemcpyAsync(temp_device_ptr, wgrad, num_elements * sizeof(TypeEmbeddingComp),
+                          cudaMemcpyDeviceToDevice, local_gpu->get_stream());
+    if (err != cudaSuccess) {
+      cudaFree(temp_device_ptr);
+      HCTR_LIB_THROW(err);
+    }
+
     backward_change_kernel<<<batch_size, embedding_vec_size, 0, local_gpu->get_stream()>>>(
-        batch_size, slot_num_per_gpu[id], embedding_vec_size, wgrad, desired_value);
+        batch_size, slot_num_per_gpu[id], embedding_vec_size, temp_device_ptr, desired_value);
+
+    cudaMemcpyAsync(wgrad, temp_device_ptr, num_elements * sizeof(TypeEmbeddingComp),
+                    cudaMemcpyDeviceToDevice, local_gpu->get_stream());
   }
 
   return;
@@ -74,10 +121,10 @@ template void SparseEmbeddingFunctors::backward_change<__half>(
     Tensors2<__half> &wgrad_tensors, const ResourceManager &resource_manager, float desired_value);
 
 template void SparseEmbeddingFunctors::backward_change<float>(
-      size_t batch_size,size_t slot_num, size_t embedding_vec_size,
-      Tensors2<float> &wgrad_tensors, const ResourceManager &resource_manager, float desired_value);
-  
+    size_t batch_size, size_t slot_num, size_t embedding_vec_size, Tensors2<float> &wgrad_tensors,
+    const ResourceManager &resource_manager, float desired_value);
+
 template void SparseEmbeddingFunctors::backward_change<__half>(
-      size_t batch_size,size_t slot_num, size_t embedding_vec_size,
-      Tensors2<__half> &wgrad_tensors, const ResourceManager &resource_manager, float desired_value);
+    size_t batch_size, size_t slot_num, size_t embedding_vec_size, Tensors2<__half> &wgrad_tensors,
+    const ResourceManager &resource_manager, float desired_value);
 }  // namespace HugeCTR
