@@ -8,7 +8,7 @@ namespace {
 
 template <typename TypeEmbeddingComp>
 __global__ void backward_change_kernel(int batch_size, int slot_num, int embedding_vec_size,
-                                       TypeEmbeddingComp *wgrad, float desired_value) {
+                                       TypeEmbeddingComp *temp_device_ptr, float desired_value) {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
   if (bid < batch_size && tid < embedding_vec_size) {
@@ -16,9 +16,10 @@ __global__ void backward_change_kernel(int batch_size, int slot_num, int embeddi
       size_t feature_index = (size_t)(bid * slot_num + i) * embedding_vec_size + tid;
 
       if (std::is_same<TypeEmbeddingComp, __half>::value) {
-        wgrad[feature_index] = __hmul(wgrad[feature_index], __float2half(desired_value));
+        temp_device_ptr[feature_index] =
+            __hmul(temp_device_ptr[feature_index], __float2half(desired_value));
       } else {
-        wgrad[feature_index] *= desired_value;
+        temp_device_ptr[feature_index] *= desired_value;
       }
     }
   }
@@ -30,6 +31,7 @@ void SparseEmbeddingFunctors::backward_change(size_t batch_size, size_t slot_num
                                               Tensors2<TypeEmbeddingComp> &wgrad_tensors,
                                               const ResourceManager &resource_manager,
                                               float desired_value) {
+  int *a = 0;
   size_t local_gpu_count = resource_manager.get_local_gpu_count();
   CudaDeviceContext context;
   for (size_t id = 0; id < local_gpu_count; id++) {

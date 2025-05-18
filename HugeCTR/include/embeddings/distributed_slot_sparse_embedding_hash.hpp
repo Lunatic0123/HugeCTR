@@ -171,8 +171,9 @@ class DistributedSlotSparseEmbeddingHash : public IEmbedding {
                                 embedding_data_.get_local_gpu(i).get_stream());
       functors_.forward_change(embedding_data_.embedding_params_.get_batch_size(is_train),
                                embedding_data_.embedding_params_.slot_num,
-                               embedding_data_.embedding_params_.embedding_vec_size,
-                               embedding_feature_tensors_[i], 1.0f);
+                               embedding_data_.embedding_params_.embedding_vec_size, 0,
+                               embedding_feature_tensors_[i],
+                               embedding_data_.get_local_gpu(i).get_stream(), 1.0f);
     }
 
     // do reduce scatter
